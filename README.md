@@ -54,6 +54,8 @@ function APIready (data) {
 
 > Nota 3 (resiliência): também é possível cadastrar múltiplas fontes em `tideDataSources` (ex: `tables2021`, `tables2023` e URLs base externas) para fallback automático no carregamento dos PDFs. A configuração atual já inclui uma fonte externa via jsDelivr como backup.
 
+> Nota 4 (offline): o app mantém cache **compacto** de maré em `localStorage`, com limite de até **3MB** e remoção automática dos registros mais antigos.
+
 ### Como Usar:
 
 * Iniciar a API

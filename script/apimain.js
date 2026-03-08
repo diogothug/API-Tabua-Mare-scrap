@@ -1,3 +1,6 @@
+var TIDE_CACHE_STORE_KEY = "tide-cache-v2";
+var TIDE_CACHE_MAX_BYTES = 3 * 1024 * 1024;
+
 function startAPI(idlocation, dir){
       var prefix = dir || "";
 
@@ -115,26 +118,152 @@ function loadPdfWithFallback(candidates, onSuccess, onError){
   tryLoad(0);
 }
 
-function cacheTideData(idlocation, data){
+function encodeCompactTideRows(data){
+  var rows = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i] || {};
+    rows.push([
+      row.date || null,
+      row.day || null,
+      row.hour1 || null,
+      row.height1 || null,
+      row.hour2 || null,
+      row.height2 || null,
+      row.hour3 || null,
+      row.height3 || null,
+      row.hour4 || null,
+      row.height4 || null
+    ]);
+  }
+  return rows;
+}
+
+function decodeCompactTideRows(compactRows){
+  var rows = [];
+  for (var i = 0; i < compactRows.length; i++) {
+    var row = compactRows[i];
+    rows.push({
+      date: row[0],
+      day: row[1],
+      hour1: row[2],
+      height1: row[3],
+      hour2: row[4],
+      height2: row[5],
+      hour3: row[6],
+      height3: row[7],
+      hour4: row[8],
+      height4: row[9]
+    });
+  }
+  return rows;
+}
+
+function getUtf8ByteSize(text){
+  try {
+    return new TextEncoder().encode(text).length;
+  } catch (error) {
+    return text.length * 2;
+  }
+}
+
+function trimCacheToLimit(store){
+  var keys = Object.keys(store);
+  var serialized = JSON.stringify(store);
+  var totalBytes = getUtf8ByteSize(serialized);
+
+  if (totalBytes <= TIDE_CACHE_MAX_BYTES) {
+    return store;
+  }
+
+  keys.sort(function(a, b){
+    return (store[a].updatedAt || 0) - (store[b].updatedAt || 0);
+  });
+
+  while (keys.length && totalBytes > TIDE_CACHE_MAX_BYTES) {
+    var oldestKey = keys.shift();
+    delete store[oldestKey];
+    serialized = JSON.stringify(store);
+    totalBytes = getUtf8ByteSize(serialized);
+  }
+
+  return store;
+}
+
+function readCompactCacheStore(){
+  if (!window.localStorage) return {};
+
+  try {
+    var raw = localStorage.getItem(TIDE_CACHE_STORE_KEY);
+    if (!raw) return {};
+
+    var parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (error) {
+    console.warn("Unable to read tide compact cache", error);
+  }
+
+  return {};
+}
+
+function writeCompactCacheStore(store){
   if (!window.localStorage) return;
 
   try {
-    localStorage.setItem("tide-cache-" + idlocation, JSON.stringify(data));
+    var trimmed = trimCacheToLimit(store);
+    localStorage.setItem(TIDE_CACHE_STORE_KEY, JSON.stringify(trimmed));
   } catch (error) {
-    console.warn("Unable to cache tide data", error);
+    console.warn("Unable to persist tide compact cache", error);
   }
+}
+
+function cacheTideData(idlocation, data){
+  if (!window.localStorage) return;
+
+  var compactRows = encodeCompactTideRows(data);
+  var store = readCompactCacheStore();
+
+  store[String(idlocation)] = {
+    updatedAt: Date.now(),
+    rows: compactRows
+  };
+
+  writeCompactCacheStore(store);
+}
+
+function readLegacyCache(idlocation){
+  try {
+    var legacy = localStorage.getItem("tide-cache-" + idlocation);
+    if (!legacy) return null;
+
+    var parsedLegacy = JSON.parse(legacy);
+    if (parsedLegacy && parsedLegacy.length) {
+      cacheTideData(idlocation, parsedLegacy);
+      return parsedLegacy;
+    }
+  } catch (error) {
+    console.warn("Unable to read legacy tide cache", error);
+  }
+
+  return null;
 }
 
 function deliverCachedTideData(idlocation){
   if (!window.localStorage) return false;
 
   try {
-    var cached = localStorage.getItem("tide-cache-" + idlocation);
-    if (!cached) return false;
+    var store = readCompactCacheStore();
+    var bucket = store[String(idlocation)];
 
-    var parsedCache = JSON.parse(cached);
-    if (parsedCache && parsedCache.length) {
-      APIready(parsedCache);
+    if (bucket && bucket.rows && bucket.rows.length) {
+      APIready(decodeCompactTideRows(bucket.rows));
+      return true;
+    }
+
+    var legacyData = readLegacyCache(idlocation);
+    if (legacyData) {
+      APIready(legacyData);
       return true;
     }
   } catch (error) {
