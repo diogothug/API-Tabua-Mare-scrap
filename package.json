@@ -1,0 +1,11 @@
+{
+  "name": "api-tabua-mare-scrap",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Tide data integration API with scraping, parsing, and marine providers",
+  "main": "api-server.js",
+  "scripts": {
+    "start": "node api-server.js",
+    "check": "node --check api-server.js"
+  }
+}

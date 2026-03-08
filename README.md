@@ -155,5 +155,35 @@ Acesse a pasta "Example" para consultar exemplos:
 > 53|"PORTO DE AREIA BRANCA"
 
 
+
+## API HTTP de Integração (novo)
+
+Agora o projeto também pode rodar como uma API HTTP para integração com outros apps (mobile, backend, BI).
+
+### Subir servidor
+
+```sh
+node api-server.js
+```
+
+Servidor padrão: `http://localhost:3000`.
+
+### Endpoints
+
+- `GET /api/v1/health`
+- `GET /api/v1/sources`
+- `GET /api/v1/tides`
+  - NOAA: `?source=noaa&station=9447130&date=20240101&range=24`
+  - DHN scraping: `?source=dhn_scraping&dhn_code=40140&month=1&year=2024`
+  - Auto fallback: `?station=9447130&dhn_code=40140&month=1&year=2024`
+- `GET /api/v1/marine`
+  - Open-Meteo Marine: `?lat=-9.6658&lon=-35.7353&timezone=UTC`
+
+### Fontes integradas
+
+- NOAA CO-OPS (tides/currents)
+- Marinha do Brasil DHN/CHM (scraping da tábua)
+- Open-Meteo Marine (condições oceânicas)
+
 READE.md desenvolvido com http://dillinger.io/
 
