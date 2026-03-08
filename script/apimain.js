@@ -45,19 +45,35 @@ function startAPI(idlocation, dir){
 
 function buildFileCandidates(prefix, fileUrl) {
   var candidates = [];
-  var bareUrl = fileUrl;
+  var filename = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+  var sources = resolveDataSources();
 
-  candidates.push(prefix + bareUrl);
+  candidates.push(prefix + fileUrl);
 
-  if (bareUrl.indexOf("tables2021/") === 0) {
-    candidates.push(prefix + bareUrl.replace("tables2021/", "tables2023/"));
-  }
+  for (var i = 0; i < sources.length; i++) {
+    var source = sources[i];
 
-  if (bareUrl.indexOf("tables2023/") === 0) {
-    candidates.push(prefix + bareUrl.replace("tables2023/", "tables2021/"));
+    if (source.type === "localFolder") {
+      candidates.push(prefix + source.value + "/" + filename);
+    }
+
+    if (source.type === "baseUrl") {
+      candidates.push(source.value + filename);
+    }
   }
 
   return uniqueArray(candidates);
+}
+
+function resolveDataSources(){
+  if (typeof tideDataSources !== "undefined" && tideDataSources && tideDataSources.length) {
+    return tideDataSources;
+  }
+
+  return [
+    {type: "localFolder", value: "tables2021"},
+    {type: "localFolder", value: "tables2023"}
+  ];
 }
 
 function uniqueArray(values){

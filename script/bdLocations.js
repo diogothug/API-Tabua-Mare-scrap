@@ -5,6 +5,17 @@
 var arrLocations = new Array();
 var folder = "tables2021";
 
+/**
+ * Fontes de dados de maré em ordem de prioridade.
+ * - localFolder: pasta local com os PDFs de maré.
+ * - baseUrl: endpoint/base pública com o mesmo nome de arquivo.
+ */
+var tideDataSources = [
+  {type: "localFolder", value: "tables2021"},
+  {type: "localFolder", value: "tables2023"},
+  {type: "baseUrl", value: "https://cdn.jsdelivr.net/gh/guisantiago/API-Tabua-Mare-scrap@master/tables2021/"}
+];
+
 arrLocations[0] = {name:"FUNDEADOURO DE SALINÓPOLIS", url:folder+"/fundeadouro_de_salinopolis.pdf"};
 
 arrLocations[1] = {name:"ILHA DO MOSQUEIRO", url:folder+"/ilha_do_mosqueiro.pdf"};
