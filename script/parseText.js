@@ -1,8 +1,8 @@
 //01 SEG 0054 0.2 0647 5.1 1309 0.4 1854 5.3 02 
 function parseText(text){
 	var arrayDay = [];
-	month = 1;
-	year = null;
+	var month = 1;
+	var year = null;
 	
 	for(var i=0; i< text.length; i++){
 		
@@ -20,7 +20,7 @@ function parseText(text){
 				
 			}
 			
-			curi = i;
+			var curi = i;
 			if(month<10)
 				temp_day.date = text[curi++]+text[curi++]+"/0"+month+"/"+year;
 			else
