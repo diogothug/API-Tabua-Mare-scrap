@@ -3,6 +3,7 @@ const http = require('http');
 const { URL } = require('url');
 
 const PORT = process.env.PORT || 3000;
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 12000);
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -21,10 +22,56 @@ function normalizeNoaaPredictions(predictions) {
   }));
 }
 
+function monthToPtBr(value) {
+  const map = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  if (/^\d+$/.test(String(value))) {
+    const idx = Number(value);
+    if (idx >= 1 && idx <= 12) return map[idx - 1];
+    if (idx >= 0 && idx <= 11) return map[idx];
+  }
+  const normalized = String(value || '').slice(0, 3).toLowerCase();
+  const found = map.find((m) => m.toLowerCase() === normalized);
+  if (!found) throw new Error('Invalid month. Use 1-12 or Jan/Fev/...');
+  return found;
+}
+
+function assertNumeric(value, fieldName) {
+  if (!/^[-+]?\d+(\.\d+)?$/.test(String(value))) {
+    throw new Error(`Invalid numeric value for ${fieldName}`);
+  }
+}
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...(options || {}), signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchJson(url, options) {
+  const response = await fetchWithTimeout(url, options);
+  const payload = await response.json();
+  return { response, payload };
+}
+
+async function fetchText(url, options) {
+  const response = await fetchWithTimeout(url, options);
+  const payload = await response.text();
+  return { response, payload };
+}
+
 async function fetchNoaaTides(params) {
   const station = params.station;
   if (!station) {
     throw new Error('Missing required query param: station (NOAA station id)');
+  }
+
+  if (!/^\d+$/.test(String(station))) {
+    throw new Error('Invalid station. Expected only digits');
   }
 
   const beginDate = params.begin_date || params.date || new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -45,8 +92,7 @@ async function fetchNoaaTides(params) {
   noaaUrl.searchParams.set('begin_date', beginDate);
   noaaUrl.searchParams.set('range', range);
 
-  const response = await fetch(noaaUrl);
-  const payload = await response.json();
+  const { response, payload } = await fetchJson(noaaUrl);
 
   if (!response.ok || payload.error) {
     throw new Error(payload?.error?.message || 'NOAA request failed');
@@ -61,19 +107,6 @@ async function fetchNoaaTides(params) {
     time_zone: timeZone,
     data: normalizeNoaaPredictions(payload.predictions)
   };
-}
-
-function monthToPtBr(value) {
-  const map = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  if (/^\d+$/.test(String(value))) {
-    const idx = Number(value);
-    if (idx >= 1 && idx <= 12) return map[idx - 1];
-    if (idx >= 0 && idx <= 11) return map[idx];
-  }
-  const normalized = String(value || '').slice(0, 3).toLowerCase();
-  const found = map.find((m) => m.toLowerCase() === normalized);
-  if (!found) throw new Error('Invalid month. Use 1-12 or Jan/Fev/...');
-  return found;
 }
 
 function parseDhnHtml(html) {
@@ -105,19 +138,22 @@ async function fetchDhnScraping(params) {
     throw new Error('Missing required query param: dhn_code (ex.: 40140)');
   }
 
+  if (!/^\d+$/.test(String(dhnCode))) {
+    throw new Error('Invalid dhn_code. Expected only digits');
+  }
+
   const url = `https://www.mar.mil.br/dhn/chm/box-previsao-mare/tabuas/${dhnCode}${month}${year}.htm`;
-  const response = await fetch(url, {
+  const { response, payload } = await fetchText(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 API-Tabua-Mare-Integration'
     }
   });
 
-  const html = await response.text();
   if (!response.ok) {
     throw new Error(`DHN scraping failed with status ${response.status}`);
   }
 
-  const parsed = parseDhnHtml(html);
+  const parsed = parseDhnHtml(payload);
 
   return {
     source: 'dhn_scraping',
@@ -126,7 +162,7 @@ async function fetchDhnScraping(params) {
     month,
     fetched_url: url,
     records: parsed,
-    raw_size: html.length
+    raw_size: payload.length
   };
 }
 
@@ -138,14 +174,16 @@ async function fetchMarineOpenMeteo(params) {
     throw new Error('Missing required query params: lat, lon');
   }
 
+  assertNumeric(latitude, 'lat');
+  assertNumeric(longitude, 'lon');
+
   const marineUrl = new URL('https://marine-api.open-meteo.com/v1/marine');
   marineUrl.searchParams.set('latitude', latitude);
   marineUrl.searchParams.set('longitude', longitude);
   marineUrl.searchParams.set('hourly', 'wave_height,wave_direction,wave_period,sea_surface_temperature');
   marineUrl.searchParams.set('timezone', params.timezone || 'UTC');
 
-  const response = await fetch(marineUrl);
-  const payload = await response.json();
+  const { response, payload } = await fetchJson(marineUrl);
 
   if (!response.ok || payload.error) {
     throw new Error(payload?.reason || 'Open-Meteo marine request failed');
@@ -160,6 +198,26 @@ async function fetchMarineOpenMeteo(params) {
   };
 }
 
+function listSources() {
+  return [
+    {
+      key: 'noaa',
+      type: 'tide_api',
+      description: 'NOAA CO-OPS Tides & Currents API (public)'
+    },
+    {
+      key: 'dhn_scraping',
+      type: 'scraping',
+      description: 'Scraping da tabela de maré da Marinha do Brasil (DHN/CHM)'
+    },
+    {
+      key: 'openmeteo_marine',
+      type: 'marine_api',
+      description: 'Open-Meteo Marine API para variáveis oceânicas (ondas/temperatura)'
+    }
+  ];
+}
+
 async function routeRequest(req, res) {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -171,36 +229,26 @@ async function routeRequest(req, res) {
     return;
   }
 
+  if (req.method !== 'GET') {
+    return sendJson(res, 405, {
+      error: 'Method not allowed',
+      allowed_methods: ['GET', 'OPTIONS']
+    });
+  }
+
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
 
   if (requestUrl.pathname === '/api/v1/health') {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'api-tabua-mare-integration',
+      timeout_ms: REQUEST_TIMEOUT_MS,
       timestamp: new Date().toISOString()
     });
   }
 
   if (requestUrl.pathname === '/api/v1/sources') {
-    return sendJson(res, 200, {
-      sources: [
-        {
-          key: 'noaa',
-          type: 'tide_api',
-          description: 'NOAA CO-OPS Tides & Currents API (public)'
-        },
-        {
-          key: 'dhn_scraping',
-          type: 'scraping',
-          description: 'Scraping da tabela de maré da Marinha do Brasil (DHN/CHM)'
-        },
-        {
-          key: 'openmeteo_marine',
-          type: 'marine_api',
-          description: 'Open-Meteo Marine API para variáveis oceânicas (ondas/temperatura)'
-        }
-      ]
-    });
+    return sendJson(res, 200, { sources: listSources() });
   }
 
   if (requestUrl.pathname === '/api/v1/tides') {
@@ -284,9 +332,13 @@ if (require.main === module) {
 }
 
 module.exports = {
+  normalizeNoaaPredictions,
+  monthToPtBr,
+  parseDhnHtml,
+  listSources,
   fetchNoaaTides,
   fetchDhnScraping,
-  parseDhnHtml,
   fetchMarineOpenMeteo,
+  routeRequest,
   server
 };

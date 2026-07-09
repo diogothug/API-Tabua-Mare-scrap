@@ -6,6 +6,7 @@
   "main": "api-server.js",
   "scripts": {
     "start": "node api-server.js",
-    "check": "node --check api-server.js"
+    "check": "node --check api-server.js",
+    "test": "node tests/api-server.test.js"
   }
 }
