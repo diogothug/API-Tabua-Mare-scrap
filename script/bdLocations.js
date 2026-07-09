@@ -3,7 +3,18 @@
  * @type {Array}
  */
 var arrLocations = new Array();
-folder = "tables2023";
+var folder = "tables2021";
+
+/**
+ * Fontes de dados de maré em ordem de prioridade.
+ * - localFolder: pasta local com os PDFs de maré.
+ * - baseUrl: endpoint/base pública com o mesmo nome de arquivo.
+ */
+var tideDataSources = [
+  {type: "localFolder", value: "tables2021"},
+  {type: "localFolder", value: "tables2023"},
+  {type: "baseUrl", value: "https://cdn.jsdelivr.net/gh/guisantiago/API-Tabua-Mare-scrap@master/tables2021/"}
+];
 
 arrLocations[0] = {name:"FUNDEADOURO DE SALINÓPOLIS", url:folder+"/fundeadouro_de_salinopolis.pdf"};
 
@@ -65,7 +76,7 @@ arrLocations[28] = {name:"PORTO DE IMBITUBA",url:folder+"/imbituba.pdf"};
 
 arrLocations[29] = {name:"PORTO DE ITAJAÍ",url:folder+"/itajai.pdf"};
 
-arrLocations[30] = {name:"PORTO DE SANTOS-TORRE GRANDE",url:folder+"/santo.pdf"};
+arrLocations[30] = {name:"PORTO DE SANTOS-TORRE GRANDE",url:folder+"/santos.pdf"};
 
 arrLocations[31] = {name:"PORTO DE SÃO SEBASTIÃO",url:folder+"/sao_sebastiao.pdf"};
 
@@ -91,9 +102,7 @@ arrLocations[41] = {name:"TERMINAL PORTUÁRIO DO PECÉM",url:folder+"/terminal_p
 
 arrLocations[42] = {name:"TERMINAL DA PONTA DO UBU",url:folder+"/terminal_da_ponta_do_ubu.pdf"};
 
-arrLocations[43] = {name:"PORTO DE VITÓRIA-CAPITANIA DOS PORTOS DO ES",url:folder+"/vitoria_capitania_dos_portos_do_es.pdf"};
-
-arrLocations[43] = {name:"PORTO DE VITÓRIA-CAPITANIA DOS PORTOS DO ES",url:"tables2020/vitoria.pdf"};
+arrLocations[43] = {name:"PORTO DE VITÓRIA-CAPITANIA DOS PORTOS DO ES",url:folder+"/vitoria.pdf"};
 
 arrLocations[44] = {name:"PORTO DE TUBARÃO",url:folder+"/tubarao.pdf"};
 
@@ -109,9 +118,8 @@ arrLocations[49] = {name:"TERMINAL DA PONTA DA MADEIRA",url:folder+"/terminal_da
 
 arrLocations[50] = {name:"PORTO DE TUTÓIA",url:folder+"/tutoia.pdf"};
 
-arrLocations[51] = {name:"FUNDEADOURO DA ESTAÇÃO ANTÁRTICA COMANDANTE FERRAZ",url:folder+"/fundeadouro_da_estacao_antartica_comandante_ferraz.pd"};
+arrLocations[51] = {name:"FUNDEADOURO DA ESTAÇÃO ANTÁRTICA COMANDANTE FERRAZ",url:folder+"/fundeadouro_da_estacao_antartica_comandante_ferraz.pdf"};
 
 arrLocations[52] = {name:"ILHA DA TRINDADE",url:folder+"/ilha_da_trindade.pdf"};
 
 arrLocations[53] = {name:"PORTO DE AREIA BRANCA",url:folder+"/areia_branca.pdf"};
-

@@ -52,6 +52,10 @@ function APIready (data) {
 
 > Nota 2: para acessar outros anos, basta criar a pasta tablesANO e modificar a variável 'folder' em 'bdLocations'.
 
+> Nota 3 (resiliência): também é possível cadastrar múltiplas fontes em `tideDataSources` (ex: `tables2021`, `tables2023` e URLs base externas) para fallback automático no carregamento dos PDFs. A configuração atual já inclui uma fonte externa via jsDelivr como backup.
+
+> Nota 4 (offline): o app mantém cache **compacto** de maré em `localStorage`, com limite de até **3MB** e remoção automática dos registros mais antigos.
+
 ### Como Usar:
 
 * Iniciar a API
@@ -152,6 +156,36 @@ Acesse a pasta "Example" para consultar exemplos:
 > 52|"ILHA DA TRINDADE"
 > 53|"PORTO DE AREIA BRANCA"
 
+
+
+## API HTTP de Integração (novo)
+
+Agora o projeto também pode rodar como uma API HTTP para integração com outros apps (mobile, backend, BI).
+
+### Subir servidor
+
+```sh
+node api-server.js
+```
+
+Servidor padrão: `http://localhost:3000`.
+
+### Endpoints
+
+- `GET /api/v1/health`
+- `GET /api/v1/sources`
+- `GET /api/v1/tides`
+  - NOAA: `?source=noaa&station=9447130&date=20240101&range=24`
+  - DHN scraping: `?source=dhn_scraping&dhn_code=40140&month=1&year=2024`
+  - Auto fallback: `?station=9447130&dhn_code=40140&month=1&year=2024`
+- `GET /api/v1/marine`
+  - Open-Meteo Marine: `?lat=-9.6658&lon=-35.7353&timezone=UTC`
+
+### Fontes integradas
+
+- NOAA CO-OPS (tides/currents)
+- Marinha do Brasil DHN/CHM (scraping da tábua)
+- Open-Meteo Marine (condições oceânicas)
 
 READE.md desenvolvido com http://dillinger.io/
 
